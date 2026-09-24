@@ -1,0 +1,17 @@
+# 兜底分支，匹配所有分支的云原生开发事件
+$:
+  vscode: # 云原生开发事件（点击页面"云原生开发"按钮触发）
+    - name: '云原生开发环境 (Node.js + pnpm)'
+      runner:
+        cpus: 4 # 指定构建需使用的 CPU 核数（内存 = 4 × 2 GiB = 8 GiB）
+      # 使用自定义镜像
+      docker:
+        image: cnbcool/default-dev-env:latest
+      services:
+        - name: vscode
+          options:
+            keepAliveTimeout: 20m # 开发环境保活时间
+        - vscode
+        - docker # 可选：如需容器化开发
+      env:
+        CNB_WELCOME_CMD: sh .ide/init.sh && sh .ide/docker-codebuddy.sh

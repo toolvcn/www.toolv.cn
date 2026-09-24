@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-Hans">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="text-scale" content="scale" />
+		%sveltekit.head%
+		<!--
+			主题：页面是 prerender 出来的，服务端拿不到用户偏好，只能在首帧之前同步定好深浅，
+			否则深色用户会先闪一下白底。官方 dark mode 文档的三态约定：存了值就听它的，
+			没存（跟随系统）就问 matchMedia。theme.svelte.ts 在 onMount 里接手后续变化。
+		-->
+		<script>
+			try {
+				var stored = localStorage.getItem('toolv:theme');
+				var dark = stored === 'dark' || (stored !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+				document.documentElement.classList.toggle('dark', dark);
+				document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+			} catch (e) {
+				/* 读不了存储就停在浅色，页面照常可用 */
+			}
+		</script>
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

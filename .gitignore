@@ -1,0 +1,43 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+*storybook.log
+storybook-static
+
+# 本地预览日志
+preview.log
+
+#pnpm
+.pnpm-store
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Agent 技能：实体在 .agents/skills/（入库，各 agent 共用）
+# .codebuddy/skills/ 是本机指向它的 Junction，不入库
+/.codebuddy/skills/
+/.workbuddy/

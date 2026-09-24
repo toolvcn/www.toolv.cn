@@ -1,0 +1,567 @@
+@import 'tailwindcss';
+
+/*
+ * 主题（深 / 浅）
+ *
+ * 机制：全站 986 处颜色类（111 个不同 token）用的是 Tailwind 原色板，逐个加 `dark:` 不现实，
+ * 所以**类名一个不改**，改为在 CSS 里把 utility 重新绑到语义变量，`:root` / `.dark` 各给一组值：
+ *   ① `.dark` 只改变量值 → 一处切换全站生效；
+ *   ② 浅色态不做任何覆盖 → 现状零风险；
+ *   ③ 覆盖规则写成 `.dark .x`（0,2,0）压过 `@layer utilities` 里的 `.x`（0,1,0），
+ *      不依赖层叠顺序（已用浏览器实测：覆盖生效）。
+ *
+ * 为什么不是覆盖 `--color-gray-*`：调色板翻转会让 `text-gray-400` 变暗（在深底上消失），
+ * 且变量互相引用会成环（`--color-gray-50: var(--color-gray-950)` 反过来又引用 50）。
+ * 语义变量 + utility 重绑定没有这两个问题，代价是要维护下面这张表。
+ *
+ * 约束：**不要引入本表之外的中性色 / 语义色**（新色不会被重绑定，深色下会不跟随）。
+ * 语义色的深浅取值见 UI-STYLE §1。
+ */
+
+/* Tailwind 4 的 dark 变体默认跟 `prefers-color-scheme`，改成跟 html 上的 .dark 类（官方 class 策略），
+   三态里的「跟随系统」由 JS 同步到这个类上 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 语义变量：不进 @theme（它们不该生成 utility），按官方口径放 :root */
+:root {
+	color-scheme: light;
+
+	/* 面 */
+	--surface: var(--color-white); /* 卡片 / 输入框 / 抽屉 / 导航条 */
+	--sunken: var(--color-gray-50); /* 页面底、淡底条 */
+	--fill: var(--color-gray-100); /* 徽章 / 计数底 */
+	--fill-2: var(--color-gray-200);
+	--fill-3: var(--color-gray-300);
+	--hairline: color-mix(in oklab, var(--color-black) 5%, transparent); /* bg-black/5：极淡的一层 */
+	--scrim: color-mix(in oklab, var(--color-gray-900) 20%, transparent); /* 抽屉遮罩 */
+
+	/* 字 */
+	--fg: var(--color-gray-900);
+	--fg-strong: var(--color-gray-700);
+	--fg-muted: var(--color-gray-600);
+	--fg-subtle: var(--color-gray-500);
+
+	/* 线与分隔 */
+	--line: var(--color-gray-200);
+	--line-soft: var(--color-gray-100);
+	--line-strong: var(--color-gray-300);
+
+	/* 交互态：深底上 hover 反过来要「变亮」，所以单独一组变量 */
+	--hover: var(--color-gray-50);
+	--hover-strong: var(--color-gray-100);
+	--hover-2: var(--color-gray-200);
+	/* 输入光标（regex 的透明输入层压在镜像层上） */
+	--caret: var(--color-gray-900);
+
+	/* accent（蓝）：实底 / 文字 / 淡底 / 描边 / 焦点环 */
+	--accent-solid: var(--color-blue-600);
+	--accent-solid-hover: var(--color-blue-700);
+	--accent-fg: var(--color-blue-700);
+	--accent-fg-strong: var(--color-blue-600);
+	--accent-soft: var(--color-blue-50);
+	--accent-soft-strong: var(--color-blue-100);
+	--accent-line: var(--color-blue-300);
+	--accent-line-soft: var(--color-blue-200);
+	--accent-ring: var(--color-blue-500);
+
+	/* ok / warn / danger 同构五档 */
+	--ok-fg: var(--color-emerald-700);
+	--ok-fg-strong: var(--color-emerald-600);
+	--ok-soft: var(--color-emerald-50);
+	--ok-solid: var(--color-emerald-500);
+	--ok-line: var(--color-emerald-200);
+
+	--warn-fg: var(--color-amber-700);
+	--warn-fg-strong: var(--color-amber-600);
+	--warn-soft: var(--color-amber-50);
+	--warn-soft-2: var(--color-amber-100); /* regex 匹配高亮的琥珀底（奇偶交替的那一档） */
+	--warn-line: var(--color-amber-200);
+
+	/* 只在个别工具出现、但深色下必须换档的两族：正则图解的紫、websocket 日志的紫 / 玫红 */
+	--violet-fg: var(--color-violet-700);
+	--violet-fg-strong: var(--color-violet-600);
+	--violet-soft: var(--color-violet-50);
+	--purple-fg: var(--color-purple-700);
+	--purple-soft: var(--color-purple-50);
+	--rose-fg: var(--color-rose-700);
+
+	--danger-fg: var(--color-red-700);
+	--danger-soft: var(--color-red-50);
+	--danger-line: var(--color-red-200);
+	--danger-line-strong: var(--color-red-400);
+	--danger-ring: var(--color-red-500);
+
+	/* 深底：代码块与 toast 两态同色（深底是它们的语义，不跟随主题） */
+	--code-block: var(--color-gray-900);
+	--code-block-fg: var(--color-gray-100);
+}
+
+.dark {
+	color-scheme: dark;
+
+	--surface: var(--color-gray-900);
+	--sunken: var(--color-gray-950);
+	--fill: var(--color-gray-800);
+	--fill-2: var(--color-gray-700);
+	--fill-3: var(--color-gray-600);
+	/* 深色下压一层黑是看不见的，反过来了 */
+	--hairline: color-mix(in oklab, var(--color-white) 10%, transparent);
+	--scrim: color-mix(in oklab, var(--color-black) 50%, transparent);
+
+	--fg: var(--color-gray-100);
+	--fg-strong: var(--color-gray-300);
+	--fg-muted: var(--color-gray-400);
+	--fg-subtle: var(--color-gray-400);
+
+	--line: var(--color-gray-700);
+	--line-soft: var(--color-gray-800);
+	--line-strong: var(--color-gray-600);
+
+	--hover: var(--color-gray-800);
+	--hover-strong: var(--color-gray-700);
+	--hover-2: var(--color-gray-600);
+	--caret: var(--color-gray-100);
+
+	/* 实底保持 -600：白字在 blue-600 上 5.9:1，换 -500 只有 3.9:1，文字可读性优先 */
+	--accent-solid: var(--color-blue-600);
+	--accent-solid-hover: var(--color-blue-500);
+	--accent-fg: var(--color-blue-300);
+	--accent-fg-strong: var(--color-blue-400);
+	--accent-soft: var(--color-blue-950);
+	--accent-soft-strong: var(--color-blue-900);
+	--accent-line: var(--color-blue-700);
+	--accent-line-soft: var(--color-blue-800);
+	--accent-ring: var(--color-blue-400);
+
+	--ok-fg: var(--color-emerald-300);
+	--ok-fg-strong: var(--color-emerald-400);
+	--ok-soft: var(--color-emerald-950);
+	--ok-solid: var(--color-emerald-400);
+	--ok-line: var(--color-emerald-800);
+
+	--warn-fg: var(--color-amber-300);
+	--warn-fg-strong: var(--color-amber-400);
+	--warn-soft: var(--color-amber-950);
+	--warn-soft-2: var(--color-amber-900);
+	--warn-line: var(--color-amber-800);
+
+	--violet-fg: var(--color-violet-300);
+	--violet-fg-strong: var(--color-violet-300);
+	--violet-soft: var(--color-violet-950);
+	--purple-fg: var(--color-purple-300);
+	--purple-soft: var(--color-purple-950);
+	--rose-fg: var(--color-rose-300);
+
+	--danger-fg: var(--color-red-300);
+	--danger-soft: var(--color-red-950);
+	--danger-line: var(--color-red-800);
+	--danger-line-strong: var(--color-red-600);
+	--danger-ring: var(--color-red-400);
+
+	--code-block: var(--color-gray-950);
+	--code-block-fg: var(--color-gray-100);
+}
+
+/* ---- utility 重绑定：只在深色态生效，浅色态一条不改 ---- */
+
+/* 面 */
+.dark .bg-white {
+	background-color: var(--surface);
+}
+/* 导航条是半透明的底，alpha 变体走 color-mix，得照抄一份 */
+.dark .bg-white\/90 {
+	background-color: color-mix(in oklab, var(--surface) 90%, transparent);
+}
+.dark .bg-gray-50 {
+	background-color: var(--sunken);
+}
+.dark .bg-gray-100 {
+	background-color: var(--fill);
+}
+.dark .bg-gray-200 {
+	background-color: var(--fill-2);
+}
+.dark .bg-gray-300 {
+	background-color: var(--fill-3);
+}
+.dark .bg-black\/5 {
+	background-color: var(--hairline);
+}
+.dark .bg-gray-900\/20 {
+	background-color: var(--scrim);
+}
+.dark .bg-gray-900 {
+	background-color: var(--code-block);
+}
+.dark .bg-gray-900\/85 {
+	background-color: color-mix(in oklab, var(--code-block) 85%, transparent);
+}
+.dark .text-gray-100 {
+	color: var(--code-block-fg);
+}
+
+/* 字 */
+.dark .text-gray-900,
+.dark .text-gray-800 {
+	color: var(--fg);
+}
+.dark .text-gray-700 {
+	color: var(--fg-strong);
+}
+.dark .text-gray-600 {
+	color: var(--fg-muted);
+}
+.dark .text-gray-500,
+.dark .text-gray-400 {
+	color: var(--fg-subtle);
+}
+
+/* 线与分隔 */
+.dark .border-gray-200 {
+	border-color: var(--line);
+}
+.dark .border-gray-100 {
+	border-color: var(--line-soft);
+}
+.dark .border-gray-300 {
+	border-color: var(--line-strong);
+}
+/* divide 是打在子元素上的（Tailwind 输出 `:where(.divide-x > :not(:last-child))`），照抄选择器 */
+.dark :where(.divide-gray-200 > :not(:last-child)) {
+	border-color: var(--line);
+}
+.dark :where(.divide-gray-100 > :not(:last-child)) {
+	border-color: var(--line-soft);
+}
+.dark :where(.divide-gray-300 > :not(:last-child)) {
+	border-color: var(--line-strong);
+}
+
+/* 交互态：hover 类被 Tailwind 包在 `@media (hover: hover)` 里，这里同样包一层保持一致 */
+@media (hover: hover) {
+	.dark .hover\:bg-gray-50:hover {
+		background-color: var(--hover);
+	}
+	.dark .hover\:bg-gray-100:hover {
+		background-color: var(--hover-strong);
+	}
+	.dark .hover\:text-gray-900:hover {
+		color: var(--fg);
+	}
+	.dark .hover\:text-gray-700:hover {
+		color: var(--fg-strong);
+	}
+	.dark .hover\:bg-blue-700:hover {
+		background-color: var(--accent-solid-hover);
+	}
+	.dark .hover\:bg-blue-50:hover {
+		background-color: var(--accent-soft);
+	}
+	.dark .hover\:bg-blue-100:hover {
+		background-color: var(--accent-soft-strong);
+	}
+	.dark .hover\:text-blue-700:hover {
+		color: var(--accent-fg);
+	}
+	.dark .hover\:text-blue-600:hover {
+		color: var(--accent-fg-strong);
+	}
+	.dark .hover\:border-blue-300:hover {
+		border-color: var(--accent-line);
+	}
+	.dark .hover\:border-blue-200:hover {
+		border-color: var(--accent-line-soft);
+	}
+	.dark .hover\:bg-emerald-50:hover {
+		background-color: var(--ok-soft);
+	}
+	.dark .hover\:text-emerald-700:hover {
+		color: var(--ok-fg);
+	}
+	.dark .hover\:bg-amber-50:hover {
+		background-color: var(--warn-soft);
+	}
+	.dark .hover\:text-amber-700:hover {
+		color: var(--warn-fg);
+	}
+	.dark .hover\:bg-red-50:hover {
+		background-color: var(--danger-soft);
+	}
+	.dark .hover\:text-red-700:hover {
+		color: var(--danger-fg);
+	}
+}
+.dark .focus-within\:bg-gray-50:focus-within {
+	background-color: var(--hover);
+}
+.dark .placeholder\:text-gray-500::placeholder {
+	color: var(--fg-subtle);
+}
+
+/* accent（蓝） */
+.dark .bg-blue-600 {
+	background-color: var(--accent-solid);
+}
+.dark .bg-blue-50 {
+	background-color: var(--accent-soft);
+}
+.dark .bg-blue-100 {
+	background-color: var(--accent-soft-strong);
+}
+.dark .text-blue-700 {
+	color: var(--accent-fg);
+}
+.dark .text-blue-600 {
+	color: var(--accent-fg-strong);
+}
+.dark .border-blue-300 {
+	border-color: var(--accent-line);
+}
+.dark .border-blue-500,
+.dark .focus\:border-blue-500:focus,
+.dark .focus-within\:border-blue-500:focus-within {
+	border-color: var(--accent-ring);
+}
+
+/* ok（绿） */
+.dark .bg-emerald-50 {
+	background-color: var(--ok-soft);
+}
+.dark .bg-emerald-500 {
+	background-color: var(--ok-solid);
+}
+.dark .text-emerald-700 {
+	color: var(--ok-fg);
+}
+.dark .text-emerald-600 {
+	color: var(--ok-fg-strong);
+}
+.dark .border-emerald-200 {
+	border-color: var(--ok-line);
+}
+
+/* warn（琥珀） */
+.dark .bg-amber-50 {
+	background-color: var(--warn-soft);
+}
+.dark .text-amber-700 {
+	color: var(--warn-fg);
+}
+.dark .text-amber-600 {
+	color: var(--warn-fg-strong);
+}
+.dark .border-amber-200 {
+	border-color: var(--warn-line);
+}
+
+/* danger（红） */
+.dark .bg-red-50 {
+	background-color: var(--danger-soft);
+}
+.dark .text-red-700 {
+	color: var(--danger-fg);
+}
+.dark .border-red-200 {
+	border-color: var(--danger-line);
+}
+.dark .border-red-400 {
+	border-color: var(--danger-line-strong);
+}
+.dark .border-red-500,
+.dark .focus\:border-red-500:focus {
+	border-color: var(--danger-ring);
+}
+
+/* 焦点环：ring 走的是 --tw-ring-color，不是 border-color */
+.dark .focus-visible\:ring-blue-500:focus-visible {
+	--tw-ring-color: var(--accent-ring);
+}
+.dark .focus\:ring-blue-500\/20:focus,
+.dark .focus-within\:ring-blue-500\/20:focus-within {
+	--tw-ring-color: color-mix(in oklab, var(--accent-ring) 20%, transparent);
+}
+.dark .focus-visible\:ring-red-500:focus-visible {
+	--tw-ring-color: var(--danger-ring);
+}
+.dark .focus\:ring-red-500\/20:focus {
+	--tw-ring-color: color-mix(in oklab, var(--danger-ring) 20%, transparent);
+}
+
+/* ---- 低频、但深色下必须换档的例外（都是个别工具在用，逐条对着源码加的） ---- */
+
+/*
+ * 深底代码块（`CODE_BLOCK`）的滚动条：`bg-gray-900` 在**浅色主题下也是深底**，
+ * 但它的 `color-scheme` 是从根继承的 `light` —— 于是内容一溢出，灰白滚动条就压在深底上，
+ * 和整块观感打架。给它单独声明 `dark`，滚动条（以及万一放进去的表单控件）跟着深底走。
+ * 深色主题下根本来就是 dark，这条不产生变化；页脚的白底、Toast 的 `bg-gray-900/85`、
+ * 抽屉遮罩的 `bg-gray-900/20` 都是别的类名，不受影响。
+ */
+.bg-gray-900 {
+	color-scheme: dark;
+}
+
+/* regex：匹配高亮的琥珀底（与 blue-100 那档交替），以及透明输入层的光标 */
+.dark .bg-amber-100 {
+	background-color: var(--warn-soft-2);
+}
+.dark .caret-gray-900 {
+	caret-color: var(--caret);
+}
+
+/* regex 图解的分组框、websocket 日志分词里的紫 / 玫红 / 红 */
+.dark .border-emerald-300 {
+	border-color: var(--ok-line);
+}
+.dark .border-red-300 {
+	border-color: var(--danger-line);
+}
+.dark .border-blue-600 {
+	border-color: var(--accent-ring);
+}
+.dark .text-red-600 {
+	color: var(--danger-fg-strong);
+}
+.dark .text-violet-700,
+.dark .text-violet-600 {
+	color: var(--violet-fg);
+}
+.dark .bg-violet-50 {
+	background-color: var(--violet-soft);
+}
+.dark .text-purple-700 {
+	color: var(--purple-fg);
+}
+.dark .bg-purple-50 {
+	background-color: var(--purple-soft);
+}
+.dark .text-rose-700 {
+	color: var(--rose-fg);
+}
+
+/* ring 类：首页精选卡片的琥珀描边、折线图数据点的蓝晕 */
+.dark .ring-amber-200 {
+	--tw-ring-color: var(--warn-line);
+}
+.dark .ring-blue-200 {
+	--tw-ring-color: var(--accent-line-soft);
+}
+
+/* 焦点环与 hover 的其余写法（带断点 / focus-within / 半透明底 / disabled） */
+.dark .focus\:ring-blue-500:focus {
+	--tw-ring-color: var(--accent-ring);
+}
+.dark .focus-within\:border-red-500:focus-within {
+	border-color: var(--danger-ring);
+}
+.dark .focus-within\:ring-red-500\/20:focus-within {
+	--tw-ring-color: color-mix(in oklab, var(--danger-ring) 20%, transparent);
+}
+.dark .disabled\:bg-gray-50:disabled {
+	background-color: var(--sunken);
+}
+.dark .placeholder\:text-gray-600::placeholder {
+	color: var(--fg-muted);
+}
+.dark .bg-blue-50\/70 {
+	background-color: color-mix(in oklab, var(--accent-soft) 70%, transparent);
+}
+.dark .bg-amber-500\/10 {
+	background-color: color-mix(in oklab, var(--color-amber-500) 15%, transparent);
+}
+.dark .bg-emerald-500\/10 {
+	background-color: color-mix(in oklab, var(--color-emerald-500) 15%, transparent);
+}
+@media (hover: hover) {
+	.dark .hover\:bg-gray-200:hover {
+		background-color: var(--hover-2);
+	}
+	.dark .hover\:bg-gray-200\/70:hover {
+		background-color: color-mix(in oklab, var(--hover-2) 70%, transparent);
+	}
+	.dark .hover\:bg-blue-50\/40:hover {
+		background-color: color-mix(in oklab, var(--accent-soft) 40%, transparent);
+	}
+	.dark .hover\:border-blue-400:hover {
+		border-color: var(--accent-ring);
+	}
+}
+
+/*
+ * Tailwind v4 的 Preflight 把 v3 里的 `button { cursor: pointer }` 删掉了，
+ * 浏览器对 <button> 的默认光标是 default（不是 pointer），于是所有按钮点上去
+ * 都没有手型反馈。这里在 base 层补回来，覆盖按钮与角色为按钮的元素；
+ * 禁用态保持 default，让用户一眼看出点不动。
+ */
+@layer base {
+	/*
+	 * 页面顶部有一条 h-14（56px）的 sticky 导航条。锚点跳转与键盘 Tab 引起的滚动
+	 * 都只把目标滚到「刚好进视口」，于是目标落在视口最上沿时正好被导航条压住 ——
+	 * 锚点看不出跳到了哪，Tab 过去焦点也看不见。
+	 * `scroll-padding-top` 是给根滚动容器让出这 56px，两种滚动都会自动避开。
+	 */
+	html {
+		scroll-padding-top: 3.5rem;
+	}
+	button:not(:disabled),
+	[role='button']:not([aria-disabled='true']),
+	summary,
+	label:has(input) {
+		cursor: pointer;
+	}
+
+	/*
+	 * 按下反馈：全站此前**没有任何一条 `:active` 样式**（hover / focus-visible / disabled 都有），
+	 * 于是点下去除了 `transition-colors` 那点底色之外没有「按到了」的信号。
+	 *
+	 * 用 `filter: brightness()` 而不是位移 / 改色：
+	 *   · 位移（`translateY(1px)`）会被 `overflow-hidden` 的容器裁掉一角 —— 分段控件与标签条
+	 *     的盒子高度**正好等于**按钮高度，下移 1px 就等于把按钮底边切掉（本仓库两处都是这写法）；
+	 *   · 改色要按变体逐个配 token（实底 / 描边 / 幽灵 / 危险各一套），而 brightness 对全部变体
+	 *     一律成立 —— 连无底色的幽灵按钮也会让文字/图标暗一档，不会出现「有的变体没反馈」。
+	 * 0.96 是肉眼可辨又不至于像换了套配色的量级。
+	 *
+	 * 作用范围刻意限定在按钮类元素：`<a>` 多是行内文字链，整体压暗会连正文一起变。
+	 * 与 prefers-reduced-motion 不冲突（那条压的是时长，本规则不产生动画）。
+	 */
+	button:not(:disabled):active,
+	summary:active,
+	[role='button']:not([aria-disabled='true']):active,
+	[role='switch']:not([aria-disabled='true']):active {
+		filter: brightness(0.96);
+	}
+}
+
+/*
+ * 二次确认框（`$lib/ui/Confirm/Confirm.svelte`）的遮罩层。
+ *
+ * 用语义变量直接写，不走 Tailwind 的 `backdrop:` 变体 —— 变体里的颜色类（`.backdrop\:bg-…`）
+ * 同样要进上面那张重绑定表，而遮罩色本来就有变量：`--scrim`（抽屉遮罩的同一个语义色，
+ * 浅色是 20% gray-900、深色是 50% 黑），跟着主题切换不用再维护第二条规则。
+ * 选择器带上 `.toolv-confirm`，是为了不误伤以后可能引入的其它 `<dialog>`（如打印预览类弹层）。
+ */
+dialog.toolv-confirm::backdrop {
+	background-color: var(--scrim);
+}
+
+/*
+ * 尊重系统的「减少动态效果」（prefers-reduced-motion: reduce）。
+ *
+ * 全站的动效只有三处来源：抽屉 / Toast 的 `transition:fly`（Svelte 把它编译成 CSS animation）、
+ * 状态点与发送中的 `animate-pulse` / `animate-spin`、以及各处的 `transition-*`。
+ * 前两类对偏好「减少动态」的用户仍会照原样动，而抽屉横移 320px、整块内容自旋恰是最容易引起
+ * 不适的两种动作。Svelte 的过渡由它在 JS 里建 CSS 动画，不受媒体查询约束，
+ * 所以只能在这里把时长压到一帧、迭代次数压到 1，让动画**瞬间到达终态** ——
+ * 抽屉照常出现、Toast 照常可读，只是不再有位移动画。
+ *
+ * `scroll-behavior` 一并关掉：平滑滚动同样属于「运动」触发源。
+ */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
